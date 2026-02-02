@@ -1,0 +1,14 @@
+# PersistentVolumeClaim: Request for storage by a pod, binds to a PersistentVolume
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-app-pvc
+  labels:
+    app: my-app
+spec:
+  storageClassName: manual  # Must match the PV's storage class
+  accessModes:  # Requested access mode
+    - ReadWriteOnce  # Single node read-write access
+  resources:
+    requests:
+      storage: 5Gi  # Amount of storage requested (must be <= PV capacity)

@@ -1,0 +1,27 @@
+# Ingress: Routes external HTTP/HTTPS traffic to internal services based on rules
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-app-ingress
+  labels:
+    app: my-app
+  annotations:  # Additional configuration for the ingress controller
+    nginx.ingress.kubernetes.io/rewrite-target: /  # URL rewriting
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Automatic SSL certificate management
+spec:
+  ingressClassName: nginx  # Specifies which ingress controller to use
+  tls:  # HTTPS/SSL configuration
+  - hosts:
+    - myapp.example.com
+    secretName: my-app-tls  # Secret containing SSL certificate
+  rules:  # Routing rules for incoming traffic
+  - host: myapp.example.com  # Domain name for the application
+    http:
+      paths:
+      - path: /  # URL path to match
+        pathType: Prefix  # Match all paths starting with /
+        backend:  # Where to forward the traffic
+          service:
+            name: my-app-service
+            port:
+              number: 80  # HTTP port - service port to forward traffic to

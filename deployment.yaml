@@ -1,0 +1,49 @@
+# Deployment: Manages a set of identical pods, ensuring the desired number of replicas are running
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-deployment
+  labels:
+    app: my-app
+spec:
+  replicas: 3  # Number of pod instances to run
+  
+  # DEPLOYMENT STRATEGY - Rolling Update (default)
+  strategy:
+    type: RollingUpdate  # Gradually replaces old pods with new ones
+    rollingUpdate:
+      maxSurge: 1        # Max 1 extra pod during update (3+1=4 temporarily)
+      maxUnavailable: 1  # Max 1 pod unavailable (minimum 2 running)
+  
+  selector:  # Defines which pods this deployment manages
+    matchLabels:
+      app: my-app
+  template:  # Template for creating pods
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app-container
+        image: nginx:1.24.0  # Updated to specific stable version of nginx web server
+        ports:
+        - containerPort: 80  # HTTP port - standard web traffic port
+        resources:  # Resource limits and requests for the container
+          requests:  # Minimum resources guaranteed
+            memory: "64Mi"
+            cpu: "250m"
+          limits:  # Maximum resources the container can use
+            memory: "128Mi"
+            cpu: "500m"
+        livenessProbe:  # Checks if container is alive, restarts if fails
+          httpGet:
+            path: /
+            port: 80  # HTTP port - health check endpoint
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:  # Checks if container is ready to serve traffic
+          httpGet:
+            path: /
+            port: 80  # HTTP port - readiness check endpoint
+          initialDelaySeconds: 5
+          periodSeconds: 5

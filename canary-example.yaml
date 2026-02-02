@@ -1,0 +1,111 @@
+# CANARY DEPLOYMENT STRATEGY
+# Gradually shift traffic from stable to new version using replica counts
+
+---
+# STABLE DEPLOYMENT (Current version - 90% traffic)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-stable
+  labels:
+    app: my-app
+    version: stable
+spec:
+  replicas: 9  # 90% of traffic (9 out of 10 pods)
+  selector:
+    matchLabels:
+      app: my-app
+      version: stable
+  template:
+    metadata:
+      labels:
+        app: my-app
+        version: stable
+        track: stable  # All pods have 'app: my-app' label
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.24.0  # Current stable version
+        ports:
+        - containerPort: 80  # HTTP port
+        env:
+        - name: VERSION
+          value: "stable-v1.24.0"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+
+---
+# CANARY DEPLOYMENT (New version - 10% traffic)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-canary
+  labels:
+    app: my-app
+    version: canary
+spec:
+  replicas: 1  # 10% of traffic (1 out of 10 pods)
+  selector:
+    matchLabels:
+      app: my-app
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: my-app
+        version: canary
+        track: canary  # All pods have 'app: my-app' label
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.25.0  # New version being tested
+        ports:
+        - containerPort: 80  # HTTP port
+        env:
+        - name: VERSION
+          value: "canary-v1.25.0"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+
+---
+# SERVICE - Routes to BOTH stable and canary based on 'app' label
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-service
+spec:
+  selector:
+    app: my-app  # Routes to both stable and canary pods
+  ports:
+  - port: 80  # Service port
+    targetPort: 80  # Pod port
+  type: LoadBalancer
+
+# TRAFFIC DISTRIBUTION:
+# With 9 stable pods and 1 canary pod:
+# - 90% of requests go to stable (9/10 pods)
+# - 10% of requests go to canary (1/10 pods)
+
+# CANARY PROGRESSION STAGES:
+# Stage 1: stable=9, canary=1   (10% canary traffic)
+# Stage 2: stable=7, canary=3   (30% canary traffic)
+# Stage 3: stable=5, canary=5   (50% canary traffic)
+# Stage 4: stable=3, canary=7   (70% canary traffic)
+# Stage 5: stable=0, canary=10  (100% canary - promote to stable)
+
+# HOW TO USE CANARY:
+# 1. Deploy: kubectl apply -f canary-example.yaml
+# 2. Monitor canary metrics (errors, latency, etc.)
+# 3. If canary is healthy, increase canary replicas:
+#    kubectl scale deployment app-canary --replicas=3
+#    kubectl scale deployment app-stable --replicas=7
+# 4. Continue increasing until canary=10, stable=0
+# 5. Promote canary to stable:
+#    kubectl set image deployment/app-stable app=nginx:1.25.0
+#    kubectl scale deployment app-stable --replicas=10
+#    kubectl delete deployment app-canary
+# 6. Rollback if issues: kubectl scale deployment app-canary --replicas=0

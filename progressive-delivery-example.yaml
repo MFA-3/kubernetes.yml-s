@@ -1,0 +1,161 @@
+# PROGRESSIVE DELIVERY STRATEGY using Flagger (Automated Canary)
+# Requires: Flagger installed and metrics provider (Prometheus)
+# Install: kubectl apply -k github.com/fluxcd/flagger//kustomize/linkerd
+
+---
+# DEPLOYMENT - Managed by Flagger
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: progressive-app
+  labels:
+    app: progressive-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: progressive-app
+  template:
+    metadata:
+      labels:
+        app: progressive-app
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.24.0  # Flagger will create canary when you update this
+        ports:
+        - containerPort: 80  # HTTP port
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+---
+# SERVICE - Flagger will manage traffic splitting
+apiVersion: v1
+kind: Service
+metadata:
+  name: progressive-app-service
+spec:
+  selector:
+    app: progressive-app
+  ports:
+  - port: 80  # Service port
+    targetPort: 80  # Pod port
+  type: LoadBalancer
+
+---
+# FLAGGER CANARY - Automated progressive delivery configuration
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: progressive-app
+spec:
+  # Reference to the deployment
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: progressive-app
+  
+  # Service configuration
+  service:
+    port: 80  # Service port
+    targetPort: 80  # Pod port
+  
+  # Progressive rollout configuration
+  analysis:
+    interval: 1m  # Check metrics every 1 minute
+    threshold: 5  # Number of failed checks before rollback
+    maxWeight: 50  # Maximum traffic % to canary
+    stepWeight: 10  # Increase traffic by 10% each step
+    
+    # SUCCESS METRICS - All must pass for promotion
+    metrics:
+    
+    # Metric 1: HTTP Success Rate
+    - name: request-success-rate
+      thresholdRange:
+        min: 99  # Require 99% success rate (max 1% errors)
+      interval: 1m
+    
+    # Metric 2: Request Duration (Latency)
+    - name: request-duration
+      thresholdRange:
+        max: 500  # Maximum 500ms average latency
+      interval: 1m
+    
+    # Metric 3: Custom Prometheus Query
+    - name: error-rate
+      templateRef:
+        name: error-rate
+        namespace: flagger-system
+      thresholdRange:
+        max: 5  # Maximum 5% error rate
+      interval: 1m
+    
+    # WEBHOOKS - Optional automated tests
+    webhooks:
+    - name: load-test
+      url: http://flagger-loadtester/
+      timeout: 5s
+      metadata:
+        type: cmd
+        cmd: "hey -z 1m -q 10 -c 2 http://progressive-app-canary/"
+
+# PROGRESSIVE DELIVERY FLOW:
+# 1. Update deployment image: kubectl set image deployment/progressive-app app=nginx:1.25.0
+# 2. Flagger detects change and creates canary deployment
+# 3. Automated progression:
+#    - 0%   → Initialize canary
+#    - 10%  → Route 10% traffic, measure metrics for 1 min
+#    - 20%  → If metrics pass, increase to 20%
+#    - 30%  → Continue if healthy
+#    - 40%  → Keep progressing
+#    - 50%  → Final canary stage
+#    - 100% → Promote canary to primary, delete canary deployment
+# 4. Auto-rollback if any metric fails threshold
+
+---
+# Example: Prometheus metrics template (if using custom metrics)
+apiVersion: flagger.app/v1beta1
+kind: MetricTemplate
+metadata:
+  name: error-rate
+  namespace: flagger-system
+spec:
+  provider:
+    type: prometheus
+    address: http://prometheus:9090
+  query: |
+    100 - sum(
+      rate(
+        http_requests_total{
+          status!~"5..",
+          deployment="{{ target }}"
+        }[{{ interval }}]
+      )
+    ) / sum(
+      rate(
+        http_requests_total{
+          deployment="{{ target }}"
+        }[{{ interval }}]
+      )
+    ) * 100
+
+# HOW TO USE PROGRESSIVE DELIVERY:
+# Prerequisites:
+# 1. Install Flagger: kubectl apply -k github.com/fluxcd/flagger//kustomize/kubernetes
+# 2. Install Prometheus for metrics
+# 3. Apply this file: kubectl apply -f progressive-delivery-example.yaml
+#
+# Deploy new version:
+# 1. Update image: kubectl set image deployment/progressive-app app=nginx:1.25.0
+# 2. Watch automated rollout: kubectl describe canary progressive-app
+# 3. Monitor progress: watch kubectl get canaries
+# 4. Flagger automatically promotes or rolls back based on metrics
+#
+# Manual rollback (if needed):
+# kubectl set image deployment/progressive-app app=nginx:1.24.0

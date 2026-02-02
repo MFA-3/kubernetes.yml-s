@@ -1,0 +1,102 @@
+# BLUE-GREEN DEPLOYMENT STRATEGY
+# Two identical environments - switch traffic instantly between them
+
+---
+# BLUE DEPLOYMENT (Current/Stable Version)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-blue
+  labels:
+    app: my-app
+    version: blue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+      version: blue  # Selects only blue pods
+  template:
+    metadata:
+      labels:
+        app: my-app
+        version: blue
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.24.0  # Current stable version
+        ports:
+        - containerPort: 80  # HTTP port
+        env:
+        - name: VERSION
+          value: "blue-v1.24.0"
+
+---
+# GREEN DEPLOYMENT (New Version)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-green
+  labels:
+    app: my-app
+    version: green
+spec:
+  replicas: 3  # Same number as blue
+  selector:
+    matchLabels:
+      app: my-app
+      version: green  # Selects only green pods
+  template:
+    metadata:
+      labels:
+        app: my-app
+        version: green
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.25.0  # New version to test
+        ports:
+        - containerPort: 80  # HTTP port
+        env:
+        - name: VERSION
+          value: "green-v1.25.0"
+
+---
+# SERVICE - Controls which deployment receives traffic
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-service
+spec:
+  selector:
+    app: my-app
+    version: blue  # CHANGE THIS TO 'green' TO SWITCH TRAFFIC
+  ports:
+  - port: 80  # Service port
+    targetPort: 80  # Pod port
+  type: LoadBalancer
+
+---
+# Optional: Internal service for testing green before switching
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-green-test
+spec:
+  selector:
+    app: my-app
+    version: green  # Only routes to green for testing
+  ports:
+  - port: 80  # Service port
+    targetPort: 80  # Pod port
+  type: ClusterIP
+
+# HOW TO USE BLUE-GREEN:
+# 1. Deploy both: kubectl apply -f blue-green-example.yaml
+# 2. Traffic goes to BLUE (version: blue in service selector)
+# 3. Test GREEN: kubectl port-forward service/app-green-test 8080:80
+# 4. Switch traffic to GREEN: Change service selector from 'blue' to 'green'
+#    kubectl patch service app-service -p '{"spec":{"selector":{"version":"green"}}}'
+# 5. Rollback if needed: Change back to 'blue'
+#    kubectl patch service app-service -p '{"spec":{"selector":{"version":"blue"}}}'
+# 6. Delete old blue deployment after confirming green is stable

@@ -1,0 +1,41 @@
+# StatefulSet: Manages stateful applications with persistent identity and storage
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-database
+  labels:
+    app: database
+spec:
+  serviceName: "database-service"  # Headless service for stable network identity
+  replicas: 3  # Number of database instances (for high availability)
+  selector:
+    matchLabels:
+      app: database
+  template:  # Pod template for each replica
+    metadata:
+      labels:
+        app: database
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15.4  # Updated PostgreSQL to stable version 15.4
+        ports:
+        - containerPort: 5432  # PostgreSQL default port for database connections
+          name: postgres
+        env:  # Environment variables for container configuration
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:  # Securely inject password from Secret
+              name: my-app-secret
+              key: password
+        volumeMounts:  # Mount persistent storage for database data
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data  # PostgreSQL data directory
+  volumeClaimTemplates:  # Creates a PVC for each replica
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]  # Each pod gets its own volume
+      resources:
+        requests:
+          storage: 10Gi  # Storage size per database instance

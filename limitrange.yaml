@@ -1,0 +1,21 @@
+# LimitRange: Sets default, min, and max resource constraints for containers in a namespace
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: my-app-limitrange
+  namespace: default
+spec:
+  limits:  # Resource constraints
+  - max:  # Maximum resources a container can request
+      cpu: "2"
+      memory: 2Gi
+    min:  # Minimum resources a container must request
+      cpu: "100m"
+      memory: 128Mi
+    default:  # Default limits if not specified
+      cpu: "500m"
+      memory: 512Mi
+    defaultRequest:  # Default requests if not specified
+      cpu: "250m"
+      memory: 256Mi
+    type: Container  # Applies to containers

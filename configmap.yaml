@@ -1,0 +1,20 @@
+# ConfigMap: Stores non-sensitive configuration data that can be consumed by pods
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-app-config
+  labels:
+    app: my-app
+data:
+  # Configuration data as key-value pairs - can be injected as environment variables or files
+  app.env: "production"
+  log.level: "info"
+  database.host: "db.example.com"
+  database.port: "5432"  # PostgreSQL default port
+  
+  # Configuration file
+  app.properties: |
+    server.port=8080
+    server.timeout=30
+    cache.enabled=true
+    cache.ttl=3600

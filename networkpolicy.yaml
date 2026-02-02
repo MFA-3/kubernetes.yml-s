@@ -1,0 +1,33 @@
+# NetworkPolicy: Controls network traffic between pods (like a firewall)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: my-app-network-policy
+  labels:
+    app: my-app
+spec:
+  podSelector:  # Which pods this policy applies to
+    matchLabels:
+      app: my-app
+  policyTypes:  # Types of traffic to control
+  - Ingress  # Incoming traffic
+  - Egress   # Outgoing traffic
+  ingress:  # Rules for incoming traffic
+  - from:  # Sources allowed to connect
+    - podSelector:  # Allow from pods with specific labels
+        matchLabels:
+          role: frontend
+    - namespaceSelector:  # Allow from specific namespaces
+        matchLabels:
+          name: production
+    ports:  # Allowed destination ports
+    - protocol: TCP
+      port: 80  # HTTP port - allow web traffic
+  egress:  # Rules for outgoing traffic
+  - to:  # Destinations allowed to connect to
+    - podSelector:
+        matchLabels:
+          role: database
+    ports:  # Allowed destination ports
+    - protocol: TCP
+      port: 5432  # PostgreSQL port - allow database connections

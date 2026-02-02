@@ -1,0 +1,15 @@
+# Role: Defines permissions within a namespace (what actions can be performed on which resources)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-app-role
+  namespace: default  # Role is namespace-scoped
+  labels:
+    app: my-app
+rules:  # Permission rules
+- apiGroups: [""]  # Core API group
+  resources: ["pods", "services"]  # Resource types
+  verbs: ["get", "list", "watch"]  # Allowed read-only operations
+- apiGroups: ["apps"]  # Apps API group
+  resources: ["deployments"]  # Deployment resources
+  verbs: ["get", "list", "watch", "create", "update", "patch"]  # Read and write operations

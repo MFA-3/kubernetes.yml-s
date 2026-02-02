@@ -1,0 +1,69 @@
+# ROLLING UPDATE STRATEGY - Default Kubernetes deployment strategy
+# Gradually replaces old pods with new ones to minimize downtime
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rolling-update-app
+  labels:
+    app: rolling-app
+spec:
+  replicas: 5  # Total number of pods
+  
+  # ROLLING UPDATE CONFIGURATION
+  strategy:
+    type: RollingUpdate  # Explicitly set rolling update (this is the default)
+    rollingUpdate:
+      maxSurge: 2        # Max 2 extra pods during update (5 + 2 = 7 total temporarily)
+      maxUnavailable: 1  # Max 1 pod can be unavailable (minimum 4 running)
+  
+  selector:
+    matchLabels:
+      app: rolling-app
+  
+  template:
+    metadata:
+      labels:
+        app: rolling-app
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.24.0  # Change this to nginx:1.25.0 to trigger rolling update
+        ports:
+        - containerPort: 80  # HTTP port
+        
+        # Health checks ensure only healthy pods receive traffic
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80  # HTTP port - checks if pod is ready
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80  # HTTP port - checks if pod is alive
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
+---
+# Service for rolling update app
+apiVersion: v1
+kind: Service
+metadata:
+  name: rolling-update-service
+spec:
+  selector:
+    app: rolling-app  # Routes to all pods with this label (both old and new versions)
+  ports:
+  - port: 80  # Service port
+    targetPort: 80  # Pod port
+  type: LoadBalancer
+
+# HOW TO TEST ROLLING UPDATE:
+# 1. Apply this file: kubectl apply -f rolling-update-example.yaml
+# 2. Watch rollout: kubectl rollout status deployment/rolling-update-app
+# 3. Update image: kubectl set image deployment/rolling-update-app app=nginx:1.25.0
+# 4. Watch update: kubectl rollout status deployment/rolling-update-app
+# 5. Rollback if needed: kubectl rollout undo deployment/rolling-update-app

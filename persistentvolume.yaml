@@ -1,0 +1,15 @@
+# PersistentVolume: Cluster-wide storage resource that exists independently of pods
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-app-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual  # Storage class for grouping similar storage types
+  capacity:
+    storage: 10Gi  # Total storage capacity available
+  accessModes:  # How the volume can be mounted
+    - ReadWriteOnce  # Can be mounted as read-write by a single node
+  hostPath:  # Uses directory on the host node (not recommended for production)
+    path: "/mnt/data"

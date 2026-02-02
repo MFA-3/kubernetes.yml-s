@@ -1,0 +1,32 @@
+# DaemonSet: Ensures a copy of the pod runs on every node in the cluster
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: monitoring-agent
+  labels:
+    app: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: monitoring-agent
+  template:
+    metadata:
+      labels:
+        app: monitoring-agent
+    spec:
+      containers:
+      - name: fluentd
+        image: fluent/fluentd:v1.16-1  # Updated Fluentd log collector to specific stable version
+        resources:  # Resource constraints for the logging agent
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:  # Mount host's log directory to collect logs
+        - name: varlog
+          mountPath: /var/log  # Access to system logs on the host
+      volumes:
+      - name: varlog
+        hostPath:  # Access node's filesystem
+          path: /var/log  # Host's log directory path

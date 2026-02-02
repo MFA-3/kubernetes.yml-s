@@ -1,0 +1,8 @@
+# Namespace: Provides logical isolation and organization for cluster resources
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-app-namespace  # Virtual cluster within the physical cluster
+  labels:
+    name: my-app-namespace
+    environment: production  # Helps separate dev, staging, and production environments

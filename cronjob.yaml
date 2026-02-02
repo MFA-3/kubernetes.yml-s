@@ -1,0 +1,25 @@
+# CronJob: Schedules jobs to run at specific times (like cron in Linux)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-job
+  labels:
+    app: backup
+spec:
+  schedule: "0 2 * * *"  # Cron schedule: Run daily at 2 AM (min hour day month weekday)
+  jobTemplate:  # Template for jobs created by this CronJob
+    spec:
+      template:  # Pod template
+        metadata:
+          labels:
+            app: backup
+        spec:
+          containers:
+          - name: backup
+            image: alpine:3.19  # Updated to Alpine Linux for lightweight backup scripts
+            command: ["/bin/sh"]  # Shell to execute backup script
+            args: ["-c", "backup-script.sh"]  # Backup script execution
+            env:  # Environment variables for backup configuration
+            - name: BACKUP_PATH
+              value: "/backups"  # Directory where backups are stored
+          restartPolicy: OnFailure  # Retry on failure

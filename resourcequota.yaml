@@ -1,0 +1,15 @@
+# ResourceQuota: Limits the total resources that can be consumed in a namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: my-app-quota
+  namespace: default
+spec:
+  hard:  # Hard limits for the namespace
+    requests.cpu: "10"  # Total CPU that can be requested
+    requests.memory: 20Gi  # Total memory that can be requested
+    limits.cpu: "20"  # Total CPU limit across all pods
+    limits.memory: 40Gi  # Total memory limit across all pods
+    pods: "20"  # Maximum number of pods
+    services: "10"  # Maximum number of services
+    persistentvolumeclaims: "10"  # Maximum number of PVCs

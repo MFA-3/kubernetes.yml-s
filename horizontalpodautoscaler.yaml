@@ -1,0 +1,27 @@
+# HorizontalPodAutoscaler: Automatically scales pods based on CPU/memory usage
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-app-hpa
+  labels:
+    app: my-app
+spec:
+  scaleTargetRef:  # Which resource to scale
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-app-deployment
+  minReplicas: 2  # Minimum number of pods to maintain
+  maxReplicas: 10  # Maximum number of pods to scale to
+  metrics:  # Metrics to trigger scaling decisions
+  - type: Resource
+    resource:
+      name: cpu  # CPU-based scaling
+      target:
+        type: Utilization
+        averageUtilization: 70  # Scale up when average CPU exceeds 70%
+  - type: Resource
+    resource:
+      name: memory  # Memory-based scaling
+      target:
+        type: Utilization
+        averageUtilization: 80  # Scale up when average memory exceeds 80%

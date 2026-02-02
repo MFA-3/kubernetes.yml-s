@@ -1,0 +1,20 @@
+# Job: Runs a task to completion, useful for one-time operations like migrations
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-migration
+  labels:
+    app: migration
+spec:
+  template:  # Pod template for the job
+    metadata:
+      labels:
+        app: migration
+    spec:
+      containers:
+      - name: migration
+        image: migrate/migrate:v4.16.2  # Updated database migration tool to specific version
+        command: ["migrate"]  # Main command to execute
+        args: ["-path", "/migrations", "-database", "postgres://localhost:5432/mydb", "up"]  # Port 5432: PostgreSQL connection
+      restartPolicy: OnFailure  # Retry on failure, don't restart on success
+  backoffLimit: 4  # Maximum retry attempts before marking job as failed
